@@ -7,17 +7,22 @@ import (
   "net/http"
   "encoding/json"
   "io"
+  "time"
+  "github.com/justfancy64/pokedexcli/internal/pokecache"
 )
 
 func main() {
   var cfg config
+  cache := pokecache.NewCache(5 * time.Second) // this is a pointer
+
+
   cfg.Next = "https://pokeapi.co/api/v2/location-area/"
-  UI := createUI(&cfg)
+  UI := createUI(&cfg, cache)
   fmt.Printf("pokedex> ") 
 
   scanner := bufio.NewScanner(os.Stdin)
   for scanner.Scan() {
-    err := UI[scanner.Text()].callback(&cfg) 
+    err := UI[scanner.Text()].callback(&cfg, cache) 
     fmt.Sprintf("pokedex> ")
     if err != nil {
       fmt.Sprintf("Error: %v", err)
@@ -38,23 +43,23 @@ func main() {
 type cliCommand struct {
   name         string
   description  string 
-  callback     func(cfg *config) error
+  callback     func(cfg *config, c *pokecache.Cache) error
   
 }
-func commandHelp(cfg *config) error {
+func commandHelp(cfg *config,c *pokecache.Cache) error {
   fmt.Println("")
   fmt.Println("Welcome to the pokedex\n")
   fmt.Printf("Usage:\n\nhelp: Displays the help menu\nexit: exits the pokedex\n")
   return nil
 }
 
-func commandExit(cfg *config) error {
+func commandExit(cfg *config,c *pokecache.Cache) error {
   fmt.Println("this command exits the program bai bai")
   os.Exit(0)
   return nil
 }
 
-func commandMap(cfg *config) error {
+func commandMap(cfg *config, c *pokecache.Cache) error {
   //api := "https://pokeapi.co/api/v2/location-area/" // poke api endpoint
 
   res, err := http.Get(cfg.Next)
@@ -66,10 +71,19 @@ func commandMap(cfg *config) error {
   defer res.Body.Close()
 
 
-  dat,  err  := io.ReadAll(res.Body)
+  dat,  err  := io.ReadAll(res.Body) // dat is []byte
   if err != nil {
     fmt.Println(err)
   }
+  err = c.Add(cfg.Next, dat)
+  if err != nil {
+    return err
+  }
+
+  // call to cacheAdd will be hereadd
+  // ?
+
+
   var areas locationresponse
   err = json.Unmarshal(dat, &areas)
   if err != nil {
@@ -93,25 +107,34 @@ func commandMap(cfg *config) error {
 
 }
 
-func commandMapb(cfg *config) error {
+func commandMapb(cfg *config,c *pokecache.Cache) error {
+  var data []byte
   if cfg.Previous == "" {
     fmt.Println("no previous locations to display")
     return nil
   }
-  res, err := http.Get(cfg.Previous)
-  if err != nil {
-    fmt.Println(err)
-    return err
-  }
-  defer res.Body.Close()
+  chaceEntry, ok := c.Get(cfg.Previous)
+  if !ok {
+    res, err := http.Get(cfg.Previous)
+    if err != nil {
+      fmt.Println(err)
+      return err
+    }
+    defer res.Body.Close()
 
-  dat, err := io.ReadAll(res.Body)
-  if err != nil {
-    return err
+    data, err = io.ReadAll(res.Body)
+    if err != nil {
+      fmt.Println(err)
+      return err
+    }
+    c.Add(cfg.Previous, data)
+  } else { 
+    data = chaceEntry
   }
   var areas locationresponse
-  err = json.Unmarshal(dat, &areas)
+  err := json.Unmarshal(data, &areas)
   if err != nil {
+    fmt.Println(err)
     return err
   }
   var prev interface{} = areas.Previous
@@ -152,7 +175,7 @@ type locationresponse struct {
 
 
 
-func createUI(cfg *config) map[string]cliCommand {
+func createUI(cfg *config, c *pokecache.Cache) map[string]cliCommand {
     return map[string]cliCommand{
       "help": {
         name:        "help",
