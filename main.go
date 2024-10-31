@@ -4,11 +4,12 @@ import (
   "fmt"
   "bufio"
   "os"
-  "net/http"
   "encoding/json"
-  "io"
   "time"
+  "strings"
   "github.com/justfancy64/pokedexcli/internal/pokecache"
+  "github.com/justfancy64/pokedexcli/internal/apireq"
+  "github.com/justfancy64/pokedexcli/internal/poketypes"
 )
 
 func main() {
@@ -17,15 +18,17 @@ func main() {
 
 
   cfg.Next = "https://pokeapi.co/api/v2/location-area/"
-  UI := createUI(&cfg, cache)
   fmt.Printf("pokedex> ") 
 
   scanner := bufio.NewScanner(os.Stdin)
   for scanner.Scan() {
-    err := UI[scanner.Text()].callback(&cfg, cache) 
-    fmt.Sprintf("pokedex> ")
+    input := scanner.Text()
+    args := strings.Fields(input)
+    UI := createUI(&cfg, cache, args)
+    err := UI[args[0]].callback(&cfg, cache, args) 
+    fmt.Println("pokedex> ")
     if err != nil {
-      fmt.Sprintf("Error: %v", err)
+      fmt.Println("Error: %v", err)
     }
 
   }
@@ -43,35 +46,28 @@ func main() {
 type cliCommand struct {
   name         string
   description  string 
-  callback     func(cfg *config, c *pokecache.Cache) error
-  
+  callback     func(cfg *config, c *pokecache.Cache, args []string) error
+ 
 }
-func commandHelp(cfg *config,c *pokecache.Cache) error {
+func commandHelp(cfg *config,c *pokecache.Cache, args []string) error {
   fmt.Println("")
   fmt.Println("Welcome to the pokedex\n")
   fmt.Printf("Usage:\n\nhelp: Displays the help menu\nexit: exits the pokedex\n")
   return nil
 }
 
-func commandExit(cfg *config,c *pokecache.Cache) error {
+func commandExit(cfg *config,c *pokecache.Cache, args []string ) error {
   fmt.Println("this command exits the program bai bai")
   os.Exit(0)
   return nil
 }
 
-func commandMap(cfg *config, c *pokecache.Cache) error {
+func commandMap(cfg *config, c *pokecache.Cache, args []string ) error {
   //api := "https://pokeapi.co/api/v2/location-area/" // poke api endpoint
+  
+ 
 
-  res, err := http.Get(cfg.Next)
-  if err != nil {
-    fmt.Println(err)
-    return err
-  }
-  fmt.Println("request succesfull")
-  defer res.Body.Close()
-
-
-  dat,  err  := io.ReadAll(res.Body) // dat is []byte
+  dat, err  := apireq.Basicreq(cfg.Next) // dat is []byte
   if err != nil {
     fmt.Println(err)
   }
@@ -107,7 +103,7 @@ func commandMap(cfg *config, c *pokecache.Cache) error {
 
 }
 
-func commandMapb(cfg *config,c *pokecache.Cache) error {
+func commandMapb(cfg *config,c *pokecache.Cache, args []string) error {
   var data []byte
   if cfg.Previous == "" {
     fmt.Println("no previous locations to display")
@@ -115,18 +111,13 @@ func commandMapb(cfg *config,c *pokecache.Cache) error {
   }
   chaceEntry, ok := c.Get(cfg.Previous)
   if !ok {
-    res, err := http.Get(cfg.Previous)
+    data, err := apireq.Basicreq(cfg.Previous)
     if err != nil {
       fmt.Println(err)
       return err
     }
-    defer res.Body.Close()
 
-    data, err = io.ReadAll(res.Body)
-    if err != nil {
-      fmt.Println(err)
-      return err
-    }
+    
     c.Add(cfg.Previous, data)
   } else { 
     data = chaceEntry
@@ -150,12 +141,30 @@ func commandMapb(cfg *config,c *pokecache.Cache) error {
   }
   return nil
 }
-/*
-func (c config)  updateNextPrev(next, previous string) {
-  c.Next = next
-  c.Previous = Previous
+
+func commandExplore(cfg *config,c *pokecache.Cache, args []string) error {
+  apilink := "https://pokeapi.co/api/v2/location-area/" + args[1] + "/"
+
+  var loc poketypes.SpecifiedLocation
+  data, err := apireq.Basicreq(apilink)
+  if err != nil {
+    return fmt.Errorf("error in explore request: %v", err)
+  } 
+
+  err = json.Unmarshal(data, &loc)
+  if err != nil {
+    return fmt.Errorf("error in explore Unmarshal: %v",err)
+  }
+  fmt.Println("pokemons found in %s", args[1])
+  for _, val := range loc.PokemonEncounters {
+    fmt.Println(val.Pokemon.Name)
+  }
+  
+  return nil
+
+
 }
-*/
+
 
 type config struct {
   Next     string 
@@ -175,7 +184,7 @@ type locationresponse struct {
 
 
 
-func createUI(cfg *config, c *pokecache.Cache) map[string]cliCommand {
+func createUI(cfg *config, c *pokecache.Cache, args []string) map[string]cliCommand {
     return map[string]cliCommand{
       "help": {
         name:        "help",
@@ -196,6 +205,11 @@ func createUI(cfg *config, c *pokecache.Cache) map[string]cliCommand {
         name:        "mapb",
         description: "Displays the 20 previously displayed map locations",
         callback:    commandMapb,
+      },
+      "explore": {
+        name:        "explore",
+        description: "lists pokemon of area",
+        callback:    commandExplore,
       },
     }
   }
