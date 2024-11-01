@@ -10,6 +10,7 @@ import (
   "github.com/justfancy64/pokedexcli/internal/pokecache"
   "github.com/justfancy64/pokedexcli/internal/apireq"
   "github.com/justfancy64/pokedexcli/internal/poketypes"
+  "math/rand"
 )
 
 func main() {
@@ -25,10 +26,16 @@ func main() {
     input := scanner.Text()
     args := strings.Fields(input)
     UI := createUI(&cfg, cache, args)
+    _,ok := UI[args[0]]
+    if !ok {
+      fmt.Println("Command not found. type help")
+      fmt.Printf("pokedex>")
+      continue
+    }
     err := UI[args[0]].callback(&cfg, cache, args) 
     fmt.Println("pokedex> ")
     if err != nil {
-      fmt.Println("Error: %v", err)
+      fmt.Printf("Error: %v\n", err)
     }
 
   }
@@ -166,6 +173,66 @@ func commandExplore(cfg *config,c *pokecache.Cache, args []string) error {
 }
 
 
+func commandCatch(cfg *config, c *pokecache.Cache, args []string) error {
+  apilink := "https://pokeapi.co/api/v2/pokemon/" + args[1] + "/"
+  var data []byte
+
+  entry, ok := c.Get(apilink) // returns pokemon type, bool
+  if !ok {
+    var err error
+    data, err = apireq.Basicreq(apilink)
+    if err != nil {
+      return err
+    } 
+    err = c.Add(apilink, data)
+    if err != nil {
+      return err
+    }
+    
+
+
+
+  } else {
+    data = entry
+  }
+
+  var pokemon poketypes.Pokemon
+  err := json.Unmarshal(data, &pokemon)
+    if err != nil {
+      return fmt.Errorf("error in catch unmarshal %v", err)
+    }
+
+
+  if caught := catch(pokemon.BaseExperience); caught {
+    fmt.Printf("%s was caught and added to the pokedex\n", pokemon.Name)
+    err = c.AddPokemon(args[1], pokemon)
+    if err != nil {
+      return fmt.Errorf("error adding pokemon to cache: %v", err)
+    }
+  } else {
+    fmt.Printf("failed to catch %s ", pokemon.Name)
+  }
+  return nil
+}
+ 
+
+func catch(baseexp int) bool {
+  var catchchance float64
+
+
+  catchchance = ((300 - float64(baseexp))/300) * 100
+  random := rand.Float64()
+
+  if (random * 100) < catchchance{
+    return true
+  } else {
+    return false
+  }
+
+}
+
+
+
 type config struct {
   Next     string 
   Previous string 
@@ -210,6 +277,11 @@ func createUI(cfg *config, c *pokecache.Cache, args []string) map[string]cliComm
         name:        "explore",
         description: "lists pokemon of area",
         callback:    commandExplore,
+      },
+      "catch": {
+        name:        "catch",
+        description:  "attemps to catch pokemon",
+        callback:    commandCatch,
       },
     }
   }
