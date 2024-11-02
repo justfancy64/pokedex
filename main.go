@@ -231,6 +231,35 @@ func catch(baseexp int) bool {
 
 }
 
+func commandInspect(cfg *config, c *pokecache.Cache, args []string) error {
+  poke, ok := c.GetPokemon(args[1])
+  if !ok {
+    fmt.Printf("you havent caught a %s yet\n", args[1])
+    return nil
+  }
+  fmt.Printf("Name: %s \n", poke.Name)
+  fmt.Printf("Height: %d \n", poke.Height)
+  fmt.Printf("Weight: %d \n", poke.Weight)
+  fmt.Println("Stats:")
+  for _, val := range poke.Stats {
+    fmt.Printf("  -%s: %d \n", val.Stat.Name, val.BaseStat)
+  }
+  fmt.Println("Types:")
+  for _, val := range poke.Types {
+    fmt.Printf("  - %s\n", val.Type.Name)
+  }
+  return nil
+
+}
+
+func commandPokedex(cfg *config, c *pokecache.Cache, args []string) error {
+  fmt.Println("you have caught the following pokemon:")
+  for key, _ := range c.Pokedex {
+    fmt.Printf("  %s\n", key)
+  }
+  return nil
+}
+
 
 
 type config struct {
@@ -280,8 +309,18 @@ func createUI(cfg *config, c *pokecache.Cache, args []string) map[string]cliComm
       },
       "catch": {
         name:        "catch",
-        description:  "attemps to catch pokemon",
+        description: "attemps to catch pokemon",
         callback:    commandCatch,
+      },
+      "inspect": {
+        name:        "inspect",
+        description: "lists information about pokemon in pokedex",
+        callback:    commandInspect,
+      },
+      "pokedex": {
+        name:        "pokedex",
+        description: "lists caught pokemon",
+        callback:    commandPokedex,
       },
     }
   }
