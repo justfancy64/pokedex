@@ -22,6 +22,7 @@ type CliCommand struct {
 type Config struct {
   Next     string 
   Previous string 
+  Commands map[string]CliCommand
 }
 
 
@@ -38,8 +39,19 @@ type Locationresponse struct {
 
 func CommandHelp(cfg *Config,c *pokecache.Cache, args []string) error {
   fmt.Println("")
-  fmt.Println("Welcome to the pokedex\n")
-  fmt.Printf("Usage:\n\nhelp: Displays the help menu\nexit: exits the pokedex\n")
+  //fmt.Printf("Usage:\n\nhelp: Displays the help menu\nexit: exits the pokedex\n")
+  fmt.Println("Available commands are:")
+  for _, val := range cfg.Commands {
+      length := len(val.name)
+      n := 20 - length
+      fmt.Printf(" -%s:", val.name)
+      for i := 0; i < n; i++ {
+        fmt.Printf(" ")
+      }
+      fmt.Printf("%s\n", val.description)
+
+
+  }
   return nil
 }
 
@@ -240,5 +252,12 @@ func CommandPokedex(cfg *Config, c *pokecache.Cache, args []string) error {
 }
 
 
+func CommandMeow(cfg *Config, c *pokecache.Cache, args []string) error {
+  fmt.Println("      ||     _,,,---,,_")
+  fmt.Println("ZZZzz /,`.-'`'    -.  ;-;;,_")
+  fmt.Println("     |,4-  ) )-,_. ,| (  `'-'")
+  fmt.Println("  '---''(_/--'  `-'|_)  meowwwww")
+  return nil
+}
 
 

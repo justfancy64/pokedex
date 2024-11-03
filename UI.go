@@ -11,12 +11,12 @@ func CreateUI(cfg *Config, c *pokecache.Cache, args []string) map[string]CliComm
     return map[string]CliCommand{
       "help": {
         name:        "help",
-        description: "Displays a help message",
+        description: "Displays the help message",
         callback:    CommandHelp,
       }    ,
       "exit": {
         name:        "exit",
-        description: "Exit the Pokedex",
+        description: "Exits the Pokedex",
         callback:    CommandExit,
       },
       "map": {
@@ -30,17 +30,17 @@ func CreateUI(cfg *Config, c *pokecache.Cache, args []string) map[string]CliComm
         callback:    CommandMapb,
       },
       "explore": {
-        name:        "explore",
+        name:        "explore[area]",
         description: "lists pokemon of area",
         callback:    CommandExplore,
       },
       "catch": {
-        name:        "catch",
+        name:        "catch[pokemon]",
         description: "attemps to catch pokemon",
         callback:    CommandCatch,
       },
       "inspect": {
-        name:        "inspect",
+        name:        "inspect[pokemon]",
         description: "lists information about pokemon in pokedex",
         callback:    CommandInspect,
       },
@@ -48,6 +48,11 @@ func CreateUI(cfg *Config, c *pokecache.Cache, args []string) map[string]CliComm
         name:        "pokedex",
         description: "lists caught pokemon",
         callback:    CommandPokedex,
+      },
+      "quissy": {
+        name:        "kitten",
+        description: "too dangerous dont press",
+        callback:    CommandMeow,
       },
     }
   }
